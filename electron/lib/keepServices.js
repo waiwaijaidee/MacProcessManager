@@ -49,24 +49,32 @@ export function listKeepServices() {
   return { ok: true, services: loadStore() }
 }
 
-/** Create or update one entry. Fields: id?, name, kind ('container'|'command'), command?, active? */
+/** Create or update one entry. Fields: id?, name, kind ('container'|'command'|'port'), command?, port? */
 export function saveKeepService(input = {}) {
+  const kind = ['container', 'command', 'port'].includes(input.kind) ? input.kind : 'container'
   const name = String(input.name ?? '').trim()
-  if (!name) return { ok: false, error: 'ต้องระบุชื่อ service' }
+  const port = kind === 'port' ? Number(input.port) : null
+  if (kind === 'port' && (!port || port < 1 || port > 65535)) {
+    return { ok: false, error: 'ต้องระบุ port 1-65535' }
+  }
+  if (!name && kind !== 'port') return { ok: false, error: 'ต้องระบุชื่อ service' }
 
-  const kind = input.kind === 'command' ? 'command' : 'container'
   const command = kind === 'command' ? String(input.command ?? '').trim() : null
   if (kind === 'command' && !command) {
     return { ok: false, error: 'ต้องระบุคำสั่งที่จะรัน (command)' }
   }
 
+  const displayName = name || (kind === 'port' ? `port ${port}` : '')
   const services = loadStore()
-  const existing = input.id ? services.find((s) => s.id === input.id) : services.find((s) => s.name === name)
+  const existing = input.id
+    ? services.find((s) => s.id === input.id)
+    : services.find((s) => (kind === 'port' ? s.kind === 'port' && s.port === port : s.name === displayName))
 
   const entry = {
     id: existing?.id ?? `keep-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-    name,
+    name: displayName,
     kind,
+    port: kind === 'port' ? port : null,
     command,
     active: input.active === undefined ? existing?.active ?? true : Boolean(input.active),
     createdAt: existing?.createdAt ?? Date.now()
@@ -102,6 +110,12 @@ export async function ensureKeepServicesAlive() {
       // "already running" style failures are success for our purposes.
       const ok = result.ok || /already|running/i.test(result.error ?? '')
       results.push({ id: service.id, name: service.name, kind: 'container', ok, error: result.ok ? null : result.error })
+    } else if (service.kind === 'port') {
+      // A port entry can't be restarted by us — it is verified instead, so
+      // the sleep plan can warn before the screen goes off.
+      const check = await run('/usr/sbin/lsof', ['-nP', '-iTCP', `:${service.port}`, '-sTCP:LISTEN'], { timeout: 6000 })
+      const ok = Boolean(check.ok && (check.stdout ?? '').trim())
+      results.push({ id: service.id, name: service.name, kind: 'port', port: service.port, ok, listening: ok, error: ok ? null : `ไม่มี process รับสายที่ port ${service.port}` })
     } else if (service.kind === 'command') {
       const command = String(service.command ?? '').trim()
       const args = command.split(/\s+/).filter(Boolean)
@@ -149,6 +163,10 @@ export async function getKeepServicesStatus() {
     if (service.kind === 'container') {
       const result = await run('/usr/bin/env', ['docker', 'ps', '--filter', `name=^/${service.name}$`, '--format', '{{.Names}}'], { timeout: 4000 })
       const running = Boolean(result.ok && (result.stdout ?? '').includes(service.name))
+      status.push({ ...service, running, active: service.active !== false })
+    } else if (service.kind === 'port') {
+      const check = await run('/usr/sbin/lsof', ['-nP', '-iTCP', `:${service.port}`, '-sTCP:LISTEN'], { timeout: 6000 })
+      const running = Boolean(check.ok && (check.stdout ?? '').trim())
       status.push({ ...service, running, active: service.active !== false })
     } else {
       const child = spawned.get(service.id)

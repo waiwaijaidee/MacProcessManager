@@ -17,6 +17,8 @@ export function SleepPanel() {
   const [keepForever, setKeepForever] = useState(false)
   const [containers, setContainers] = useState([])
   const [keepServices, setKeepServices] = useState([])
+  const [listeners, setListeners] = useState([])
+  const [portQuery, setPortQuery] = useState('')
   const [newKind, setNewKind] = useState('container')
   const [newName, setNewName] = useState('')
   const [newCommand, setNewCommand] = useState('')
@@ -28,6 +30,7 @@ export function SleepPanel() {
     api.sleep.state().then(setState)
     api.services.overview().then((overview) => setContainers(overview.containers ?? []))
     api.keepServices.status().then((s) => setKeepServices(s.services ?? []))
+    api.services.listeners().then((r) => setListeners(r.listeners ?? []))
   }, [])
 
   const runningNames = containers.filter((c) => c.running).map((c) => c.name)
@@ -118,6 +121,29 @@ export function SleepPanel() {
   const ensureKeepServices = async () => {
     setKeepBusy(true)
     await api.keepServices.ensure()
+    const status = await api.keepServices.status()
+    setKeepServices(status.services ?? [])
+    setBusy(false)
+    setKeepBusy(false)
+  }
+
+  /** Listener rows matching the port search box. */
+  const portMatches = (() => {
+    const q = String(portQuery ?? '').trim()
+    if (!q) return []
+    const query = q.toLowerCase()
+    return listeners.filter(
+      (l) => String(l.port).includes(q) || String(l.name ?? '').toLowerCase().includes(query)
+    ).slice(0, 8)
+  })()
+
+  const addPortService = async (listener) => {
+    setKeepBusy(true)
+    await api.keepServices.save({
+      kind: 'port',
+      port: listener.port,
+      name: `${listener.name} :${listener.port}`
+    })
     const status = await api.keepServices.status()
     setKeepServices(status.services ?? [])
     setKeepBusy(false)
@@ -216,7 +242,11 @@ export function SleepPanel() {
                             {service.running ? 'running' : 'not running'}
                           </span>
                           <code className="kbd" style={{ marginLeft: 8, fontSize: 11 }}>
-                            {service.kind === 'container' ? `docker: ${service.name}` : service.command}
+                            {service.kind === 'container'
+                              ? `docker: ${service.name}`
+                              : service.kind === 'port'
+                                ? `ตรวจ port ${service.port}`
+                                : service.command}
                           </code>
                         </span>
                         <button
@@ -237,7 +267,17 @@ export function SleepPanel() {
                   <select className="input" style={{ width: 130 }} value={newKind} onChange={(e) => setNewKind(e.target.value)}>
                     <option value="container">Docker container</option>
                     <option value="command">คำสั่งเอง (command)</option>
+                    <option value="port">ค้นหา port ที่รันอยู่</option>
                   </select>
+                  {newKind === 'port' ? (
+                    <input
+                      className="input"
+                      style={{ width: 220 }}
+                      placeholder="พิมพ์ port หรือชื่อ process เช่น 3000, node"
+                      value={portQuery}
+                      onChange={(e) => setPortQuery(e.target.value)}
+                    />
+                  ) : null}
                   {newKind === 'container' ? (
                     <select className="input" style={{ width: 220 }} value={newName} onChange={(e) => setNewName(e.target.value)}>
                       <option value="">— เลือก container —</option>
@@ -279,6 +319,35 @@ export function SleepPanel() {
                     <IconPlay size={12} /> Start ทั้งหมดตอนนี้
                   </button>
                 </div>
+
+                {newKind === 'port' && portMatches.length > 0 ? (
+                  <div className="keep-services__list" style={{ marginTop: 6 }}>
+                    <div className="field__hint">ผลค้นหา port ที่กำลังรันอยู่ (กดเพื่อเพิ่ม):</div>
+                    {portMatches.map((listener) => (
+                      <div key={`${listener.port}-${listener.pid}`} className="keep-services__item">
+                        <span className="keep-services__name">
+                          <b>:{listener.port}</b>
+                          <code className="kbd" style={{ marginLeft: 8, fontSize: 11 }}>
+                            {listener.name} · pid {listener.pid} · {listener.address}
+                          </code>
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--primary"
+                          onClick={() => addPortService(listener)}
+                          disabled={keepBusy}
+                        >
+                          + เพิ่ม
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {newKind === 'port' && portQuery.trim() && portMatches.length === 0 ? (
+                  <div className="field__hint" style={{ marginTop: 6 }}>
+                    ไม่พบ port/process ที่ตรงกับ "{portQuery}" — ลองพิมพ์เลข port หรือชื่อ process
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>

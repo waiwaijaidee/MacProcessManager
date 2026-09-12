@@ -4,6 +4,7 @@ import { Empty, Panel } from '../components/ui.jsx'
 import { CodeConfirm } from '../components/CodeConfirm.jsx'
 import {
   IconAlert,
+  IconCheck,
   IconClose,
   IconExternal,
   IconChevronRight,
@@ -90,6 +91,20 @@ export function ServicesView({ onOpenProcess }) {
   const [logText, setLogText] = useState('')
   const [logBusy, setLogBusy] = useState(false)
   const [confirm, setConfirm] = useState(null)
+  const [keepMsg, setKeepMsg] = useState(null)
+
+  /** Add this service (container) to the Sleep panel's keep-running list. */
+  const addToKeepRunning = useCallback(async (service) => {
+    const name = service.container?.name ?? service.label
+    if (!name) return
+    const result = await api.keepServices.save({ name, kind: 'container', active: true })
+    setKeepMsg(
+      result?.ok
+        ? `เพิ่ม "${name}" ไปยัง Sleep → หลับแบบรัน service ที่เลือก แล้ว`
+        : `เพิ่มไม่สำเร็จ: ${result?.error ?? 'unknown'}`
+    )
+    setTimeout(() => setKeepMsg(null), 4000)
+  }, [])
 
   const refresh = useCallback(async () => {
     const result = await api.services.overview()
@@ -533,6 +548,15 @@ export function ServicesView({ onOpenProcess }) {
 
               <button
                 type="button"
+                className={`btn btn--icon btn--sm ${keepMsg?.includes(container.name) ? 'btn--primary' : ''}`}
+                title="เพิ่มไปยัง Sleep → หลับแบบรัน service ที่เลือก (keep running)"
+                onClick={() => addToKeepRunning(service)}
+              >
+                🌙
+              </button>
+
+              <button
+                type="button"
                 className="btn btn--icon btn--sm"
                 title="Show container logs"
                 onClick={() => openLogs(service)}
@@ -576,6 +600,11 @@ export function ServicesView({ onOpenProcess }) {
 
   return (
     <div className="view">
+      {keepMsg ? (
+        <div className="keep-msg" style={{ position: 'sticky', top: 0, zIndex: 5 }}>
+          <span className="badge badge--ok"><IconCheck size={11} /> {keepMsg}</span>
+        </div>
+      ) : null}
       <div className="service-toolbar">
         <span className="service-search">
           <span className="service-search__icon">
