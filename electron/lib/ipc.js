@@ -26,6 +26,7 @@ import {
 } from './sleep.js'
 import { abortChat, chatWithApi, chatWithCline, clineInfo, testConnection, testCredential } from './ai.js'
 import { applyUpdate, checkForUpdates, getDeveloperContent, getUpdateInfo } from './updates.js'
+import { applyHotUpdate, checkHotUpdate, getServerUrl, relaunchApp, rollbackHotUpdate, setServerUrl } from './hotUpdate.js'
 import {
   ensureKeepServicesAlive,
   getKeepServicesStatus,
@@ -146,6 +147,13 @@ export function registerIpc() {
   handle('updates:check', () => checkForUpdates())
   handle('updates:apply', () => applyUpdate())
   handle('developer:content', () => getDeveloperContent())
+
+  handle('hotUpdate:serverUrl', () => ({ ok: true, serverUrl: getServerUrl() }))
+  handle('hotUpdate:setServerUrl', (_e, url) => setServerUrl(url))
+  handle('hotUpdate:check', () => checkHotUpdate())
+  handle('hotUpdate:apply', () => applyHotUpdate())
+  handle('hotUpdate:rollback', () => rollbackHotUpdate())
+  handle('hotUpdate:relaunch', () => relaunchApp())
 
   handle('ai:info', () => clineInfo())
   handle('ai:test', async (_e, options = {}) => testConnection(options))

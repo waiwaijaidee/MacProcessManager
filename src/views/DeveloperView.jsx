@@ -10,6 +10,10 @@ export function DeveloperView() {
   const [checkResult, setCheckResult] = useState(null)
   const [applyResult, setApplyResult] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [hotServerUrl, setHotServerUrl] = useState(null)
+  const [serverInput, setServerInput] = useState('')
+  const [hotCheckResult, setHotCheckResult] = useState(null)
+  const [hotApplyResult, setHotApplyResult] = useState(null)
 
   const load = useCallback(async () => {
     const contentResponse = await api.developer.content()
@@ -17,6 +21,9 @@ export function DeveloperView() {
     setContentSource(contentResponse.source ?? null)
     const infoResponse = await api.updates.info()
     setUpdateInfo(infoResponse)
+    const serverResponse = await api.hotUpdate.serverUrl()
+    setHotServerUrl(serverResponse.serverUrl ?? null)
+    setServerInput(serverResponse.serverUrl ?? '')
   }, [])
 
   useEffect(() => {
@@ -42,6 +49,35 @@ export function DeveloperView() {
     setBusy(false)
     load()
   }
+
+  const saveServer = async () => {
+    setBusy(true)
+    await api.hotUpdate.setServerUrl(serverInput.trim())
+    const serverResponse = await api.hotUpdate.serverUrl()
+    setHotServerUrl(serverResponse.serverUrl ?? null)
+    setBusy(false)
+  }
+
+  const hotCheck = async () => {
+    setBusy(true)
+    setHotApplyResult(null)
+    setHotCheckResult(await api.hotUpdate.check())
+    setBusy(false)
+  }
+
+  const hotApply = async () => {
+    setBusy(true)
+    setHotApplyResult(await api.hotUpdate.apply())
+    setBusy(false)
+  }
+
+  const hotRollback = async () => {
+    setBusy(true)
+    await api.hotUpdate.rollback()
+    setBusy(false)
+  }
+
+  const restart = () => api.hotUpdate.relaunch()
 
   return (
     <div className="developer-view">
@@ -128,6 +164,71 @@ export function DeveloperView() {
             {applyResult.updated ? (
               <span className="field__hint">ปิดและเปิดแอปใหม่อีกครั้งเพื่อให้โค้ดใหม่ทำงานเต็มรูปแบบ</span>
             ) : null}
+          </div>
+        ) : null}
+      </Panel>
+
+      <Panel
+        title="Hot Update — อัปเดตเฉพาะไฟล์ที่เปลี่ยน (ไม่ต้องโหลด DMG ใหม่)"
+        hint={hotServerUrl ?? 'ยังไม่ได้ตั้ง update server'}
+      >
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+          <input
+            className="input"
+            style={{ width: 320 }}
+            placeholder="https://waiwai-it.com/app"
+            value={serverInput}
+            onChange={(e) => setServerInput(e.target.value)}
+          />
+          <button type="button" className="btn btn--sm" onClick={saveServer} disabled={busy}>
+            บันทึก URL
+          </button>
+          <button type="button" className="btn btn--sm btn--primary" onClick={hotCheck} disabled={busy}>
+            <IconRefresh size={13} /> เช็คไฟล์ที่เปลี่ยน
+          </button>
+          {hotCheckResult?.updateAvailable ? (
+            <button type="button" className="btn btn--sm btn--primary" onClick={hotApply} disabled={busy}>
+              ⬇ อัปเดต {hotCheckResult.changedCount} ไฟล์
+            </button>
+          ) : null}
+          {hotApplyResult?.updated ? (
+            <button type="button" className="btn btn--sm btn--primary" onClick={restart}>
+              ⟳ Restart แอป
+            </button>
+          ) : null}
+          {hotApplyResult?.backupDir ? (
+            <button type="button" className="btn btn--sm btn--danger" onClick={hotRollback} disabled={busy}>
+              ย้อนกลับ (rollback)
+            </button>
+          ) : null}
+        </div>
+
+        {hotCheckResult ? (
+          <div className="sleep-plan" style={{ marginTop: 6 }}>
+            <span className="badge badge--ok">server: v{hotCheckResult.serverVersion ?? '?'}</span>
+            <span className="badge badge--ok">app: v{hotCheckResult.currentVersion ?? '?'}</span>
+            {hotCheckResult.updateAvailable ? (
+              <span className="badge badge--warn">มี {hotCheckResult.changedCount} ไฟล์ที่ต่างจาก server</span>
+            ) : (
+              <span className="badge badge--ok"><IconCheck size={11} /> ไฟล์ตรงกับ server ทั้งหมด ({hotCheckResult.upToDateCount} ไฟล์)</span>
+            )}
+            {hotCheckResult.changed?.slice(0, 30).map((f) => (
+              <span key={f.rel}>
+                <code style={{ fontSize: 11 }}>⟳ {f.rel}</code>
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        {hotApplyResult ? (
+          <div className="sleep-plan" style={{ marginTop: 6 }}>
+            <b>{hotApplyResult.message}</b>
+            {hotApplyResult.applied?.length ? <span className="badge badge--ok">แทนที่แล้ว {hotApplyResult.applied.length} ไฟล์</span> : null}
+            {hotApplyResult.failed?.map((f) => (
+              <span key={f.rel} className="badge--warn">
+                ✗ {f.rel}: {f.error}
+              </span>
+            ))}
           </div>
         ) : null}
       </Panel>

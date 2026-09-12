@@ -57,6 +57,14 @@ const bridge = {
   developer: {
     content: () => invoke('developer:content')
   },
+  hotUpdate: {
+    serverUrl: () => invoke('hotUpdate:serverUrl'),
+    setServerUrl: (url) => invoke('hotUpdate:setServerUrl', url),
+    check: () => invoke('hotUpdate:check'),
+    apply: () => invoke('hotUpdate:apply'),
+    rollback: () => invoke('hotUpdate:rollback'),
+    relaunch: () => invoke('hotUpdate:relaunch')
+  },
   ai: {
     info: () => invoke('ai:info'),
     test: (options) => invoke('ai:test', options),

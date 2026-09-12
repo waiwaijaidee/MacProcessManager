@@ -107,6 +107,14 @@ function mock() {
         }
       })
     },
+    hotUpdate: {
+      serverUrl: async () => ({ ok: true, serverUrl: null }),
+      setServerUrl: unavailable,
+      check: unavailable,
+      apply: unavailable,
+      rollback: unavailable,
+      relaunch: async () => ({ ok: false })
+    },
     ai: {
       info: async () => ({ available: false, reason: 'Electron bridge unavailable.' }),
       test: async () => ({ ok: false, error: 'Electron bridge unavailable.' }),

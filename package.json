@@ -17,6 +17,7 @@
     "preview": "vite preview",
     "dist": "npm run build && electron-builder --mac",
     "pack": "npm run build && electron-builder --mac --dir",
+    "payload": "vite build && node scripts/build-update-payload.mjs",
     "test": "node scripts/smoke-test.mjs"
   },
   "dependencies": {
@@ -44,6 +45,7 @@
       "config/**/*",
       "package.json"
     ],
+    "asar": false,
     "mac": {
       "category": "public.app-category.utilities",
       "target": [
