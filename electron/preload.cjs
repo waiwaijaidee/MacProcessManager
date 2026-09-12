@@ -49,6 +49,14 @@ const bridge = {
     remove: (id) => invoke('keepServices:remove', id),
     ensure: () => invoke('keepServices:ensure')
   },
+  updates: {
+    info: () => invoke('updates:info'),
+    check: () => invoke('updates:check'),
+    apply: () => invoke('updates:apply')
+  },
+  developer: {
+    content: () => invoke('developer:content')
+  },
   ai: {
     info: () => invoke('ai:info'),
     test: (options) => invoke('ai:test', options),

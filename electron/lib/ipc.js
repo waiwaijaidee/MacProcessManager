@@ -25,6 +25,7 @@ import {
   restoreAfterWake
 } from './sleep.js'
 import { abortChat, chatWithApi, chatWithCline, clineInfo, testConnection, testCredential } from './ai.js'
+import { applyUpdate, checkForUpdates, getDeveloperContent, getUpdateInfo } from './updates.js'
 import {
   ensureKeepServicesAlive,
   getKeepServicesStatus,
@@ -140,6 +141,11 @@ export function registerIpc() {
   handle('keepServices:save', (_e, input = {}) => saveKeepService(input ?? {}))
   handle('keepServices:remove', (_e, id) => removeKeepService(id))
   handle('keepServices:ensure', () => ensureKeepServicesAlive())
+
+  handle('updates:info', () => getUpdateInfo())
+  handle('updates:check', () => checkForUpdates())
+  handle('updates:apply', () => applyUpdate())
+  handle('developer:content', () => getDeveloperContent())
 
   handle('ai:info', () => clineInfo())
   handle('ai:test', async (_e, options = {}) => testConnection(options))

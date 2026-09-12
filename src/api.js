@@ -90,6 +90,23 @@ function mock() {
       remove: unavailable,
       ensure: async () => ({ ok: false, error: 'Electron bridge unavailable.' })
     },
+    updates: {
+      info: async () => ({ ok: true, version: '0.0.0', branch: null, head: {}, remote: null }),
+      check: unavailable,
+      apply: unavailable
+    },
+    developer: {
+      content: async () => ({
+        ok: true,
+        source: 'local',
+        content: {
+          name: 'Waiwai Jaidee',
+          facebook: 'https://fb.com/kroowaiwai',
+          website: 'https://waiwai-it.com',
+          logo: 'https://waiwai-it.com/images/waiaijaidee-logo2025.png'
+        }
+      })
+    },
     ai: {
       info: async () => ({ available: false, reason: 'Electron bridge unavailable.' }),
       test: async () => ({ ok: false, error: 'Electron bridge unavailable.' }),
