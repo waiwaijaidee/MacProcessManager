@@ -1,0 +1,59 @@
+{
+  "name": "mac-process-manager",
+  "productName": "Mac Process Manager",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A beautiful macOS process manager built with Electron + React",
+  "author": "speedmac",
+  "license": "MIT",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k -n VITE,ELECTRON -c cyan,magenta \"npm:dev:vite\" \"npm:dev:electron\"",
+    "dev:vite": "vite",
+    "dev:electron": "wait-on tcp:127.0.0.1:5173 && NODE_ENV=development electron .",
+    "build": "vite build",
+    "start": "npm run build && NODE_ENV=production electron .",
+    "preview": "vite preview",
+    "dist": "npm run build && electron-builder --mac",
+    "pack": "npm run build && electron-builder --mac --dir",
+    "test": "node scripts/smoke-test.mjs"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3",
+    "vite": "^8.3.0",
+    "wait-on": "^9.1.0"
+  },
+  "build": {
+    "appId": "com.speedmac.macprocessmanager",
+    "productName": "Mac Process Manager",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
+    }
+  }
+}
