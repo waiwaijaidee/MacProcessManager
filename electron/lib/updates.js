@@ -46,6 +46,23 @@ function npm(args, timeoutMs = 600000) {
 
 export async function getUpdateInfo() {
   const version = app.getVersion()
+
+  // The packaged app does not ship a .git folder — the git-based updater
+  // only works when the app runs from a real git clone (dev machine).
+  const gitRepoAvailable = existsSync(path.join(PROJECT_ROOT, '.git'))
+  if (!gitRepoAvailable) {
+    return {
+      ok: true,
+      version,
+      gitAvailable: false,
+      branch: null,
+      head: { hash: null, date: null, message: null },
+      remote: null,
+      projectRoot: PROJECT_ROOT,
+      note: 'แอปติดตั้งแบบ DMG ไม่มี .git — ใช้ Hot Update (แผงด้านล่าง) เพื่ออัปเดตไฟล์ที่เปลี่ยนแทน'
+    }
+  }
+
   const branchRes = await git(['rev-parse', '--abbrev-ref', 'HEAD'])
   const headRes = await git(['log', '-1', '--format=%h %cI %s'])
   const remoteRes = await git(['remote', 'get-url', 'origin'])
@@ -68,6 +85,9 @@ export async function getUpdateInfo() {
 /** Fetch the remote and list commits we are behind. */
 export async function checkForUpdates() {
   const info = await getUpdateInfo()
+  if (info.gitAvailable === false) {
+    return { ...info, ok: false, error: info.note }
+  }
   const branch = info.branch ?? 'main'
 
   const fetch = await git(['fetch', 'origin', '--quiet'], 60000)
@@ -97,6 +117,9 @@ export async function checkForUpdates() {
 export async function applyUpdate() {
   const check = await checkForUpdates()
   if (!check.ok) return check
+  if (check.gitAvailable === false) {
+    return { ok: false, updated: false, error: check.error }
+  }
   if (!check.updateAvailable) {
     return { ok: true, updated: false, message: 'เป็นเวอร์ชันล่าสุดแล้ว — ไม่มีอะไรต้องอัปเดต' }
   }
@@ -132,12 +155,24 @@ function localDeveloperContent() {
 
 /** Raw GitHub base URL derived from the git remote. */
 async function rawBaseUrl() {
-  const remoteRes = await git(['remote', 'get-url', 'origin'])
-  const remote = (remoteRes.stdout ?? '').trim()
+  let remote = ''
+  try {
+    const remoteRes = await git(['remote', 'get-url', 'origin'])
+    remote = (remoteRes.stdout ?? '').trim()
+  } catch {
+    /* no git available */
+  }
+  if (!remote) remote = 'https://github.com/waiwaijaidee/MacProcessManager'
   const match = remote.match(/github\.com[:/](.+?)\/(.+?)(?:\.git)?$/i)
   if (!match) return null
-  const branchRes = await git(['rev-parse', '--abbrev-ref', 'HEAD'])
-  return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${branchRes.stdout?.trim() || 'main'}`
+  let branch = 'main'
+  try {
+    const branchRes = await git(['rev-parse', '--abbrev-ref', 'HEAD'])
+    branch = branchRes.stdout?.trim() || 'main'
+  } catch {
+    /* keep main */
+  }
+  return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${branch}`
 }
 
 /**

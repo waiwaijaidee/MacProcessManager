@@ -119,6 +119,11 @@ export function DeveloperView() {
           <span className="badge badge--ok">
             <IconCheck size={11} /> เวอร์ชันแอป: <b>{updateInfo?.version ?? '—'}</b>
           </span>
+          {updateInfo?.gitAvailable === false ? (
+            <span className="badge badge--warn" style={{ maxWidth: 480 }}>
+              {updateInfo.note}
+            </span>
+          ) : null}
           {updateInfo?.branch ? <code className="kbd">branch: {updateInfo.branch}</code> : null}
           {updateInfo?.head?.hash ? (
             <code className="kbd" style={{ fontSize: 11 }}>
