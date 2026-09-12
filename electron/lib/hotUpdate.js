@@ -55,7 +55,7 @@ function saveState(state) {
 }
 
 /** Server URL: userData/hot-update-server.json wins over bundled default. */
-function getServerUrl() {
+export function getServerUrl() {
   const override = path.join(app.getPath('userData'), 'hot-update-server.json')
   try {
     const parsed = JSON.parse(readFileSync(override, 'utf8'))
